@@ -1,6 +1,7 @@
-import { InvalidInputError } from '../errors';
-import { type IntervalSqlToken, type SqlFragment } from '../types';
 import { z } from 'zod';
+import { InvalidInputError } from '../errors';
+import { BindValueExpression, type IntervalSqlToken, type SqlFragment } from '../types';
+import { isPrimitiveValueExpression } from '../utilities/isPrimitiveValueExpression';
 
 const IntervalInput = z
   .object({
@@ -31,7 +32,7 @@ const tokenMap = {
 
 export const createIntervalSqlFragment = (
   token: IntervalSqlToken,
-  greatestParameterPosition: number,
+  bindValues: BindValueExpression[],
 ): SqlFragment => {
   let intervalInput;
 
@@ -54,12 +55,18 @@ export const createIntervalSqlFragment = (
       values.push(value);
 
       const mappedToken = tokenMap[intervalFragment] ?? intervalFragment;
-
+      if (isPrimitiveValueExpression(value)) {
+        bindValues.push(value)
+      } else if (!bindValues.includes(value)) {
+        bindValues.push(value)
+      }
+      
       intervalTokens.push(
         mappedToken +
           ' => $' +
-          String(greatestParameterPosition + values.length),
+          String(bindValues.length),
       );
+
     }
   }
 

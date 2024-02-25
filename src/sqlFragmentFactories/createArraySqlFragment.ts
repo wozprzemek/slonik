@@ -1,16 +1,15 @@
 import { InvalidInputError, UnexpectedStateError } from '../errors';
 import { createSqlTokenSqlFragment } from '../factories/createSqlTokenSqlFragment';
-import { type ArraySqlToken, type SqlFragment } from '../types';
+import { BindValueExpression, type ArraySqlToken, type SqlFragment } from '../types';
 import { escapeIdentifier } from '../utilities/escapeIdentifier';
 import { isPrimitiveValueExpression } from '../utilities/isPrimitiveValueExpression';
+import { isSqlBindValue } from '../utilities/isSqlBindValue';
 import { isSqlToken } from '../utilities/isSqlToken';
 
 export const createArraySqlFragment = (
   token: ArraySqlToken,
-  greatestParameterPosition: number,
+  bindValues: BindValueExpression[],
 ): SqlFragment => {
-  let placeholderIndex = greatestParameterPosition;
-
   for (const value of token.values) {
     if (token.memberType === 'bytea') {
       if (Buffer.isBuffer(value)) {
@@ -22,7 +21,9 @@ export const createArraySqlFragment = (
       }
     }
 
-    if (!isPrimitiveValueExpression(value)) {
+    if (isSqlBindValue(value)) {
+      continue;
+    } else if (!isPrimitiveValueExpression(value)) {
       throw new InvalidInputError(
         'Invalid array member type. Must be a primitive value expression.',
       );
@@ -31,9 +32,15 @@ export const createArraySqlFragment = (
 
   const values = [token.values];
 
-  placeholderIndex++;
+  if ('bindValues' in token) {
+    const arrayBindValues: BindValueExpression[] = [];
+    token.bindValues.forEach(tokenBindValue => {
+      arrayBindValues.push(tokenBindValue)
+    })
 
-  let sql = '$' + String(placeholderIndex) + '::';
+    bindValues.push(arrayBindValues);
+  }
+  let sql = '$' + String(bindValues.length) + '::';
 
   if (
     isSqlToken(token.memberType) &&
@@ -41,7 +48,8 @@ export const createArraySqlFragment = (
   ) {
     const sqlFragment = createSqlTokenSqlFragment(
       token.memberType,
-      placeholderIndex,
+      bindValues.length,
+      bindValues
     );
 
     if (sqlFragment.values.length > 0) {

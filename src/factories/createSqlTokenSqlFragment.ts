@@ -22,38 +22,39 @@ import {
   ListToken,
   QueryToken,
   TimestampToken,
-  UnnestToken,
+  UnnestToken
 } from '../tokens';
-import { type SqlFragment, type SqlToken as SqlTokenType } from '../types';
+import { BindValueExpression, type SqlFragment, type SqlToken as SqlTokenType } from '../types';
 
 export const createSqlTokenSqlFragment = (
   token: SqlTokenType,
   greatestParameterPosition: number,
+  bindValues?: BindValueExpression[],
 ): SqlFragment => {
   if (token.type === ArrayToken) {
-    return createArraySqlFragment(token, greatestParameterPosition);
+    return createArraySqlFragment(token, bindValues!);
   } else if (token.type === BinaryToken) {
-    return createBinarySqlFragment(token, greatestParameterPosition);
+    return createBinarySqlFragment(token, bindValues!);
   } else if (token.type === DateToken) {
-    return createDateSqlFragment(token, greatestParameterPosition);
+    return createDateSqlFragment(token, bindValues!);
   } else if (token.type === FragmentToken) {
-    return createFragmentSqlFragment(token, greatestParameterPosition);
+    return createFragmentSqlFragment(token, bindValues!);
   } else if (token.type === IdentifierToken) {
     return createIdentifierSqlFragment(token);
   } else if (token.type === IntervalToken) {
-    return createIntervalSqlFragment(token, greatestParameterPosition);
+    return createIntervalSqlFragment(token, bindValues!);
   } else if (token.type === JsonBinaryToken) {
-    return createJsonSqlFragment(token, greatestParameterPosition, true);
+    return createJsonSqlFragment(token, bindValues!, true);
   } else if (token.type === JsonToken) {
-    return createJsonSqlFragment(token, greatestParameterPosition, false);
+    return createJsonSqlFragment(token, bindValues!, false);
   } else if (token.type === ListToken) {
-    return createListSqlFragment(token, greatestParameterPosition);
+    return createListSqlFragment(token, bindValues!);
   } else if (token.type === QueryToken) {
-    return createQuerySqlFragment(token, greatestParameterPosition);
+    return createQuerySqlFragment(token, bindValues!);
   } else if (token.type === TimestampToken) {
-    return createTimestampSqlFragment(token, greatestParameterPosition);
+    return createTimestampSqlFragment(token, bindValues!);
   } else if (token.type === UnnestToken) {
-    return createUnnestSqlFragment(token, greatestParameterPosition);
+    return createUnnestSqlFragment(token, bindValues!);
   }
 
   throw new UnexpectedStateError('Unexpected token type.');

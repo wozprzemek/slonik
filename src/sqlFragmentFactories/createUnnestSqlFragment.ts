@@ -1,5 +1,6 @@
 import { InvalidInputError } from '../errors';
 import {
+  BindValueExpression,
   type PrimitiveValueExpression,
   type SqlFragment,
   type UnnestSqlToken,
@@ -11,7 +12,7 @@ import { stripArrayNotation } from '../utilities/stripArrayNotation';
 
 export const createUnnestSqlFragment = (
   token: UnnestSqlToken,
-  greatestParameterPosition: number,
+  bindValues: BindValueExpression[],
 ): SqlFragment => {
   const { columnTypes } = token;
 
@@ -22,7 +23,7 @@ export const createUnnestSqlFragment = (
 
   let columnIndex = 0;
 
-  let placeholderIndex = greatestParameterPosition;
+  let placeholderIndex = bindValues.length;
 
   while (columnIndex < columnTypes.length) {
     const typeMember = columnTypes[columnIndex];
@@ -108,7 +109,7 @@ export const createUnnestSqlFragment = (
   }
 
   values.push(...unnestBindings);
-
+  bindValues.push(...values)
   const sql = 'unnest(' + unnestSqlTokens.join(', ') + ')';
 
   return {

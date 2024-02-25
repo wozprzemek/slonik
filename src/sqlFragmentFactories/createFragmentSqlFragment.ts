@@ -1,41 +1,39 @@
-import { UnexpectedStateError } from '../errors';
-import { type FragmentSqlToken, type SqlFragment } from '../types';
+import { BindValueExpression, type FragmentSqlToken, type SqlFragment } from '../types';
+import { isPrimitiveValueExpression } from '../utilities/isPrimitiveValueExpression';
 
 export const createFragmentSqlFragment = (
   token: FragmentSqlToken,
-  greatestParameterPosition: number,
+  bindValues: BindValueExpression[]
 ): SqlFragment => {
   let sql = '';
+  let greatestMatchedParameterPosition = bindValues.length;
 
-  let leastMatchedParameterPosition = Number.POSITIVE_INFINITY;
-  let greatestMatchedParameterPosition = 0;
-
+  if ('bindValues' in token) {    
+    token.bindValues.forEach(tokenBindValue => {
+      if (isPrimitiveValueExpression(tokenBindValue)) {
+        bindValues.push(tokenBindValue)
+      } else if (!bindValues.includes(tokenBindValue)) {
+        bindValues.push(tokenBindValue)
+      }
+    })
+  }
   sql += token.sql.replaceAll(/\$(\d+)/gu, (match, g1) => {
     const parameterPosition = Number.parseInt(g1, 10);
+    let globalBindValueIndex: number;
 
-    if (parameterPosition > greatestMatchedParameterPosition) {
-      greatestMatchedParameterPosition = parameterPosition;
+    const matchedTokenBindValue = token.bindValues[parameterPosition - 1];
+    
+    if (isPrimitiveValueExpression(matchedTokenBindValue)) {
+      globalBindValueIndex = greatestMatchedParameterPosition + 1;
+    } else {
+      globalBindValueIndex = bindValues?.indexOf(matchedTokenBindValue) + 1;
     }
 
-    if (parameterPosition < leastMatchedParameterPosition) {
-      leastMatchedParameterPosition = parameterPosition;
+    if (globalBindValueIndex > greatestMatchedParameterPosition) {
+      greatestMatchedParameterPosition = globalBindValueIndex;
     }
-
-    return '$' + String(parameterPosition + greatestParameterPosition);
+    return '$' + String(globalBindValueIndex);
   });
-
-  if (greatestMatchedParameterPosition > token.values.length) {
-    throw new UnexpectedStateError(
-      'The greatest parameter position is greater than the number of parameter values.',
-    );
-  }
-
-  if (
-    leastMatchedParameterPosition !== Number.POSITIVE_INFINITY &&
-    leastMatchedParameterPosition !== 1
-  ) {
-    throw new UnexpectedStateError('Parameter position must start at 1.');
-  }
 
   return {
     sql,

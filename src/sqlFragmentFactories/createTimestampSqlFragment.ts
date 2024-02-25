@@ -1,18 +1,22 @@
 import { InvalidInputError } from '../errors';
-import { type SqlFragment, type TimestampSqlToken } from '../types';
+import { BindValueExpression, type SqlFragment, type TimestampSqlToken } from '../types';
 
 export const createTimestampSqlFragment = (
   token: TimestampSqlToken,
-  greatestParameterPosition: number,
+  bindValues: BindValueExpression[],
 ): SqlFragment => {
   if (!(token.date instanceof Date)) {
     throw new InvalidInputError(
       'Timestamp parameter value must be an instance of Date.',
     );
   }
+  
+  const timestampValue = String(token.date.getTime() / 1_000);
+
+  bindValues.push(timestampValue);
 
   return {
-    sql: 'to_timestamp($' + String(greatestParameterPosition + 1) + ')',
+    sql: 'to_timestamp($' + String(bindValues.length) + ')',
     values: [String(token.date.getTime() / 1_000)],
   };
 };

@@ -1,6 +1,7 @@
 import { InvalidInputError } from '../errors';
 import { Logger } from '../Logger';
 import {
+  BindValueExpression,
   type JsonBinarySqlToken,
   type JsonSqlToken,
   type SqlFragment,
@@ -15,7 +16,7 @@ const log = Logger.child({
 
 export const createJsonSqlFragment = (
   token: JsonBinarySqlToken | JsonSqlToken,
-  greatestParameterPosition: number,
+  bindValues: BindValueExpression[],
   binary: boolean,
 ): SqlFragment => {
   let value;
@@ -37,6 +38,7 @@ export const createJsonSqlFragment = (
   } else {
     try {
       value = safeStringify(token.value);
+      bindValues.push(value);
     } catch (error) {
       log.error(
         {
@@ -58,7 +60,7 @@ export const createJsonSqlFragment = (
   return {
     sql:
       '$' +
-      String(greatestParameterPosition + 1) +
+      String(bindValues.length) +
       '::' +
       (binary ? 'jsonb' : 'json'),
     values: [value],

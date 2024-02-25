@@ -12,3 +12,4 @@ export const ListToken = 'SLONIK_TOKEN_LIST' as const;
 export const QueryToken = 'SLONIK_TOKEN_QUERY' as const;
 export const TimestampToken = 'SLONIK_TOKEN_TIMESTAMP' as const;
 export const UnnestToken = 'SLONIK_TOKEN_UNNEST' as const;
+export const BindValueToken = 'SLONIK_TOKEN_BIND_VALUE' as const;

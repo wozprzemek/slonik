@@ -1,8 +1,10 @@
+import { z, type ZodTypeAny } from 'zod';
 import { InvalidInputError } from '../errors';
 import { Logger } from '../Logger';
 import {
   ArrayToken,
   BinaryToken,
+  BindValueToken,
   DateToken,
   FragmentToken,
   IdentifierToken,
@@ -15,6 +17,7 @@ import {
   UnnestToken,
 } from '../tokens';
 import {
+  BindValueExpression,
   type ArraySqlToken,
   type BinarySqlToken,
   type DateSqlToken,
@@ -31,14 +34,14 @@ import {
   type TimestampSqlToken,
   type TypeNameIdentifier,
   type UnnestSqlToken,
-  type ValueExpression,
+  type ValueExpression
 } from '../types';
 import { escapeLiteralValue } from '../utilities/escapeLiteralValue';
 import { isPrimitiveValueExpression } from '../utilities/isPrimitiveValueExpression';
+import { isSqlBindValue } from '../utilities/isSqlBindValue';
 import { isSqlToken } from '../utilities/isSqlToken';
 import { safeStringify } from '../utilities/safeStringify';
 import { createSqlTokenSqlFragment } from './createSqlTokenSqlFragment';
-import { z, type ZodTypeAny } from 'zod';
 
 const log = Logger.child({
   namespace: 'sql',
@@ -49,9 +52,8 @@ const createFragment = (
   values: readonly ValueExpression[],
 ) => {
   let rawSql = '';
-
-  const parameterValues: PrimitiveValueExpression[] = [];
-
+  let parameterValues: PrimitiveValueExpression[] = [];
+  const bindValues: BindValueExpression[] = [];
   let index = 0;
 
   for (const part of parts) {
@@ -77,19 +79,25 @@ const createFragment = (
         `SQL tag cannot be bound to undefined value at index ${index}.`,
       );
     } else if (isPrimitiveValueExpression(token)) {
-      rawSql += '$' + String(parameterValues.length + 1);
-
-      parameterValues.push(token);
+      rawSql += '$' + String(bindValues.length + 1);
+      bindValues.push(token);
     } else if (isSqlToken(token)) {
       const sqlFragment = createSqlTokenSqlFragment(
         token,
         parameterValues.length,
+        bindValues
       );
 
       rawSql += sqlFragment.sql;
 
-      for (const value of sqlFragment.values) {
-        parameterValues.push(value);
+    } else if (isSqlBindValue(token)) {
+      const tokenIndex = bindValues.indexOf(token);
+      
+      if (tokenIndex === -1) {
+        bindValues.push(token);
+        rawSql += '$' + String(bindValues.length);
+      } else {
+        rawSql += '$' + String(tokenIndex + 1);
       }
     } else {
       log.error(
@@ -104,10 +112,27 @@ const createFragment = (
       throw new TypeError('Unexpected value expression.');
     }
   }
+  
+  const bindValuesToParameterValues = (bindValues) => {
+    return bindValues.map(bindValue => {
+        if (isSqlBindValue(bindValue)) {
+            return bindValue.value;
+        }
+        else if (Array.isArray(bindValue)) {
+            return bindValuesToParameterValues(bindValue);
+        }
+        else {
+            return bindValue;
+        }
+    });
+  };
 
+  parameterValues = bindValuesToParameterValues(bindValues);
+  
   return {
     sql: rawSql,
     values: parameterValues,
+    bindValues,
   };
 };
 
@@ -131,6 +156,7 @@ export const createSqlTag = <
         memberType,
         type: ArrayToken,
         values,
+        bindValues: values,
       });
     },
     binary: (data: Buffer): BinarySqlToken => {
@@ -250,5 +276,11 @@ export const createSqlTag = <
         type: QueryToken,
       });
     },
+    value: (val: ValueExpression) => {
+      return Object.freeze({
+        value: val,
+        type: BindValueToken,
+      })
+    }
   };
 };

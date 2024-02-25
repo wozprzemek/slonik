@@ -1,5 +1,3 @@
-import { type SlonikError } from './errors';
-import type * as tokens from './tokens';
 import { type Readable, type ReadableOptions } from 'node:stream';
 import { type ConnectionOptions as TlsConnectionOptions } from 'node:tls';
 import {
@@ -9,7 +7,9 @@ import {
 } from 'pg';
 import { type NoticeMessage as Notice } from 'pg-protocol/dist/messages';
 import { type Logger } from 'roarr';
-import { type z, type ZodTypeAny } from 'zod';
+import { type ZodTypeAny, type z } from 'zod';
+import { type SlonikError } from './errors';
+import type * as tokens from './tokens';
 
 /**
  * @see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
@@ -297,7 +297,9 @@ export type ArraySqlToken = {
   readonly memberType: SqlToken | TypeNameIdentifier;
   readonly type: typeof tokens.ArrayToken;
   readonly values: readonly PrimitiveValueExpression[];
+  readonly bindValues: readonly BindValueExpression[];
 };
+
 
 export type BinarySqlToken = {
   readonly data: Buffer;
@@ -313,6 +315,7 @@ export type FragmentSqlToken = {
   readonly sql: string;
   readonly type: typeof tokens.FragmentToken;
   readonly values: readonly PrimitiveValueExpression[];
+  readonly bindValues: readonly BindValueExpression[];
 };
 
 export type IdentifierSqlToken = {
@@ -346,6 +349,7 @@ export type QuerySqlToken<T extends ZodTypeAny = ZodTypeAny> = {
   readonly sql: string;
   readonly type: typeof tokens.QueryToken;
   readonly values: readonly PrimitiveValueExpression[];
+  readonly bindValues: readonly BindValueExpression[];
 };
 
 export type TimestampSqlToken = {
@@ -360,6 +364,11 @@ export type UnnestSqlToken = {
   readonly tuples: ReadonlyArray<readonly ValueExpression[]>;
   readonly type: typeof tokens.UnnestToken;
 };
+
+export type BindValueToken = {
+  readonly value: PrimitiveValueExpression;
+  readonly type: typeof tokens.BindValueToken;
+}
 
 export type PrimitiveValueExpression =
   | Buffer
@@ -382,9 +391,15 @@ export type SqlToken =
   | ListSqlToken
   | QuerySqlToken
   | TimestampSqlToken
-  | UnnestSqlToken;
+  | UnnestSqlToken
+  | BindValueToken;
+
+export type SqlBindValue = {
+  readonly value: ValueExpression;
+}
 
 export type ValueExpression = PrimitiveValueExpression | SqlFragment | SqlToken;
+export type BindValueExpression = ValueExpression | SqlBindValue | readonly BindValueExpression[];
 
 export type SqlTag<Z extends Record<string, ZodTypeAny>> = {
   array: (

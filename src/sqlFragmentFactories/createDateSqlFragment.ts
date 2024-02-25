@@ -1,9 +1,9 @@
 import { InvalidInputError } from '../errors';
-import { type DateSqlToken, type SqlFragment } from '../types';
+import { BindValueExpression, type DateSqlToken, type SqlFragment } from '../types';
 
 export const createDateSqlFragment = (
   token: DateSqlToken,
-  greatestParameterPosition: number,
+  bindValues: BindValueExpression[],
 ): SqlFragment => {
   if (!(token.date instanceof Date)) {
     throw new InvalidInputError(
@@ -11,8 +11,11 @@ export const createDateSqlFragment = (
     );
   }
 
+  const dateValue = token.date.toISOString().slice(0, 10);
+  bindValues.push(dateValue);
+
   return {
-    sql: '$' + String(greatestParameterPosition + 1) + '::date',
-    values: [token.date.toISOString().slice(0, 10)],
+    sql: '$' + String(bindValues.length) + '::date',
+    values: [dateValue],
   };
 };
